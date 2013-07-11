@@ -1047,3 +1047,4 @@ uLong ZEXPORT crc32_combine_gen(z_off_t len2) {
 uLong ZEXPORT crc32_combine_op(uLong crc1, uLong crc2, uLong op) {
     return multmodp(op, crc1) ^ (crc2 & 0xffffffff);
 }
+
