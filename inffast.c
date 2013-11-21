@@ -173,8 +173,11 @@ void ZLIB_INTERNAL inflate_fast(z_streamp strm, unsigned start) {
                 }
 
                 from = out - dist;
-                
                 if (len > dist) {
+                    zmemcpy(out, from, dist);
+                    out +=dist;
+                    from += dist;
+                    len -= dist;
                     while (len > 2) {
                         *out++ = *from++;
                         *out++ = *from++;
