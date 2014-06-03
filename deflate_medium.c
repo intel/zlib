@@ -54,6 +54,9 @@ static int emit_match(deflate_state *s, struct match match, IPos hash_head)
 
 static void insert_match(deflate_state *s, struct match match)
 {
+    if (zunlikely(s->lookahead <= match.match_length + MIN_MATCH))
+        return;
+
         /* matches that are not long enough we need to emit as litterals */
         if (match.match_length < MIN_MATCH) {
             while (match.match_length) {
