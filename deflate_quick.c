@@ -19,107 +19,56 @@
 extern void fill_window_sse(deflate_state *s);
 extern void flush_pending  OF((z_streamp strm));
 
-#ifdef X86_64
-local inline long compare258(z_const unsigned char *z_const src0,
-        z_const unsigned char *z_const src1)
-{
-    long ax, dx, cx, res;
-    __m128i xmm_src0;
-    
-    ax = 16;
-    dx = 16;
-    res = 0;
-
-    __asm__ __volatile__ (
-    "loop:\n\t"
-        "movdqu     (%[src0], %[result]), %[xmm_src0]\n\t"
-        "pcmpestri  $0x18, (%[src1], %[result]), %[xmm_src0]\n\t"
-        "jc         miscompare\n\t"
-        "add        $16, %[result]\n\t"
-
-        "movdqu     (%[src0], %[result]), %[xmm_src0]\n\t"
-        "pcmpestri  $0x18, (%[src1], %[result]), %[xmm_src0]\n\t"
-        "jc         miscompare\n\t"
-        "add        $16, %[result]\n\t"
-
-        "cmp        $256, %[result]\n\t"
-        "jb         loop\n\t"
-
-        "movzxw     (%[src0], %[result]), %[ax]\n\t"
-        "xorw        (%[src1], %[result]), %[ax]\n\t"
-        "jnz        miscompare16\n\t"
-
-        "add        $2, %[result]\n\t"
-        "jmp        end\n"
-    "miscompare16:\n\t"
-        "rep; bsf        %[ax], %[cx]\n\t"
-        "shr        $3, %[cx]\n"
-    "miscompare:\n\t"
-        "add        %[cx], %[result]\n"
-    "end:\n\t"
-    : [result] "+r" (res),
-      [ax] "+a" (ax),
-      [cx] "+c" (cx),
-      [dx] "+d" (dx),
-      [xmm_src0] "=x" (xmm_src0)
-    : [src0] "S" (src0),
-      [src1] "D" (src1)
-    : "cc"
-    );
-    return res;
-}
-#elif X86
 local inline long compare258(z_const unsigned char *z_const src0,
         z_const unsigned char *z_const src1)
 {
     long ax, dx, cx;
     __m128i xmm_src0;
-    
+
     ax = 16;
     dx = 16;
 
     __asm__ __volatile__ (
-        "push       %%ebx\n\t"
-        "xorl       %%ebx, %%ebx\n\t"
-    "loop:\n\t"
-        "movdqu     (%[src0], %%ebx), %[xmm_src0]\n\t"
-        "pcmpestri  $0x18, (%[src1], %%ebx), %[xmm_src0]\n\t"
-        "jc         miscompare\n\t"
-        "add        $16, %%ebx\n\t"
+    "1:"
+        "movdqu     -16(%[src0], %[ax]), %[xmm_src0]\n\t"
+        "pcmpestri  $0x18, -16(%[src1], %[ax]), %[xmm_src0]\n\t"
+        "jc         2f\n\t"
+        "add        $16, %[ax]\n\t"
 
-        "movdqu     (%[src0], %%ebx), %[xmm_src0]\n\t"
-        "pcmpestri  $0x18, (%[src1], %%ebx), %[xmm_src0]\n\t"
-        "jc         miscompare\n\t"
-        "add        $16, %%ebx\n\t"
+        "movdqu     -16(%[src0], %[ax]), %[xmm_src0]\n\t"
+        "pcmpestri  $0x18, -16(%[src1], %[ax]), %[xmm_src0]\n\t"
+        "jc         2f\n\t"
+        "add        $16, %[ax]\n\t"
 
-        "cmp        $256, %%ebx\n\t"
-        "jb         loop\n\t"
+        "cmp        $256 + 16, %[ax]\n\t"
+        "jb         1b\n\t"
 
-        "movzxw     (%[src0], %%ebx), %[ax]\n\t"
-        "xorw        (%[src1], %%ebx), %[ax]\n\t"
-        "jnz        miscompare16\n\t"
+#ifdef X86
+        "movzwl     -16(%[src0], %[ax]), %[dx]\n\t"
+#else
+        "movzwq     -16(%[src0], %[ax]), %[dx]\n\t"
+#endif
+        "xor       -16(%[src1], %[ax]), %%dx\n\t"
+        "jnz        3f\n\t"
 
-        "add        $2, %%ebx\n\t"
-        "jmp        end\n"
-    "miscompare16:\n\t"
-        "rep; bsf        %[ax], %[cx]\n\t"
-        "shr        $3, %[cx]\n"
-    "miscompare:\n\t"
-        "add        %[cx], %%ebx\n"
-    "end:\n\t"
-        "mov        %%ebx, %[ax]\n\t"
-        "pop        %%ebx\n\t"
+        "add        $2, %[ax]\n\t"
+        "jmp        4f\n\t"
+    "3:\n\t"
+        "rep; bsf   %[dx], %[cx]\n\t"
+        "shr        $3, %[cx]\n\t"
+    "2:"
+        "add        %[cx], %[ax]\n\t"
+    "4:"
     : [ax] "+a" (ax),
       [cx] "+c" (cx),
       [dx] "+d" (dx),
       [xmm_src0] "=x" (xmm_src0)
-    : [src0] "S" (src0),
-      [src1] "D" (src1)
+    : [src0] "r" (src0),
+      [src1] "r" (src1)
     : "cc"
     );
-    return ax;
+    return ax - 16;
 }
-#endif
 
 local z_const unsigned quick_len_codes[MAX_MATCH-MIN_MATCH+1];
 local z_const unsigned quick_dist_codes[8192];
