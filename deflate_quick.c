@@ -164,7 +164,7 @@ block_state deflate_quick(deflate_state *s, int flush)
 
     static_emit_tree(s, flush);
 
-    while (1) {
+    do {
         if (s->lookahead < MIN_LOOKAHEAD) {
             fill_window_sse(s);
             if (s->lookahead < MIN_LOOKAHEAD && flush == Z_NO_FLUSH) {
@@ -197,7 +197,10 @@ block_state deflate_quick(deflate_state *s, int flush)
         static_emit_lit(s, s->window[s->strstart]);
         s->strstart++;
         s->lookahead--;
-    }
+    } while (s->strm->avail_out != 0);
+
+    if (s->strm->avail_out == 0 && flush != Z_FINISH)
+        return need_more;
 
     s->insert = s->strstart < MIN_MATCH - 1 ? s->strstart : MIN_MATCH-1;
     if (flush == Z_FINISH) {
