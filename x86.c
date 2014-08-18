@@ -14,6 +14,7 @@ int x86_cpu_has_sse2;
 int x86_cpu_has_sse42;
 int x86_cpu_has_pclmulqdq;
 
+#ifndef _MSC_VER
 void x86_check_features(void)
 {
     unsigned eax, ebx, ecx, edx;
@@ -36,3 +37,21 @@ void x86_check_features(void)
     x86_cpu_has_sse42= ecx & 0x100000;
     x86_cpu_has_pclmulqdq = ecx & 0x2;
 }
+#elif _MSC_VER >= 1400 /* Visual Studio 2005 (first ref on MSDN to __cpuid() */
+#include <intrin.h>
+
+void x86_check_features(void)
+{
+    int regs[4];
+
+    __cpuid(regs, 1);
+
+    x86_cpu_has_sse2 = regs[3] & 0x4000000;
+    x86_cpu_has_sse42= regs[2] & 0x100000;
+    x86_cpu_has_pclmulqdq = regs[2] & 0x2;
+}
+#else
+void x86_check_features(void)
+{
+}
+#endif

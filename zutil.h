@@ -135,6 +135,33 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #  define OS_CODE  0x0a
 #endif
 
+#ifdef _MSC_VER
+#define UNALIGNED_OK
+#define ADLER32_UNROLL_LESS
+#define CRC32_UNROLL_LESS
+#define USE_MEDIUM
+
+#if _MSC_VER >= 1310
+#define HAVE_SSE2
+#define CHECK_SSE2
+#endif
+
+#if _MSC_VER >= 1700 /* Visual Studio 2012 */
+#define USE_SSE4_2_CRC_HASH
+#define USE_QUICK
+#define HAVE_PCLMULQDQ
+#endif
+
+#define inline _inline
+#include <intrin.h>
+#endif
+
+#ifdef _MSC_VER
+#define zalign(x)    __declspec(align(x))
+#else
+#define zalign(x)    __attribute__((aligned((x))))
+#endif
+
 #ifdef WIN32
 #  ifndef __CYGWIN__  /* Cygwin is Unix, not Win32 */
 #    define OS_CODE  0x0b

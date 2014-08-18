@@ -111,7 +111,7 @@ typedef struct internal_state {
     int   last_flush;    /* value of flush param for previous deflate call */
 
 #ifdef HAVE_PCLMULQDQ
-    unsigned __attribute__((aligned(16))) crc0[4 * 5];
+    unsigned zalign(16) crc0[4 * 5];
 #endif
 
                 /* used by deflate.c: */
@@ -365,18 +365,20 @@ void ZLIB_INTERNAL bi_windup OF((deflate_state *s));
  *    previous key instead of complete recalculation each time.
  */
 #ifdef USE_SSE4_2_CRC_HASH
-#define UPDATE_HASH(s,h,i) (\
+#define UPDATE_HASH(s,h,i) \
     {\
-        if (s->level < 6) \
+        if (s->level < 6) { \
             h = (3483 * (s->window[i]) +\
                  23081* (s->window[i+1]) +\
                  6954 * (s->window[i+2]) +\
                  20947* (s->window[i+3])) & s->hash_mask;\
-        else\
+        } else {\
             h = (25881* (s->window[i]) +\
                  24674* (s->window[i+1]) +\
                  25811* (s->window[i+2])) & s->hash_mask;\
-    })
+        }\
+    }\
+
 #else
 #define UPDATE_HASH(s,h,i) (h = (((h)<<s->hash_shift) ^ (s->window[i + (MIN_MATCH-1)])) & s->hash_mask)
 #endif

@@ -12,13 +12,15 @@
  *
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
-
 #include "deflate.h"
+
+#ifdef USE_QUICK
 #include <immintrin.h>
 
 extern void fill_window_sse(deflate_state *s);
 extern void flush_pending  OF((z_streamp strm));
 
+#ifndef _MSC_VER
 local inline long compare258(z_const unsigned char *z_const src0,
         z_const unsigned char *z_const src1)
 {
@@ -69,6 +71,48 @@ local inline long compare258(z_const unsigned char *z_const src0,
     );
     return ax - 16;
 }
+#else /* _MSC_VER >= 1500 */
+#include <nmmintrin.h>
+
+local inline long compare258(z_const unsigned char *z_const src0,
+        z_const unsigned char *z_const src1)
+{
+    long cnt;
+
+    cnt = 0;
+    do {
+#define mode  _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_EACH | _SIDD_NEGATIVE_POLARITY
+
+        int ret;
+        __m128i xmm_src0, xmm_src1;
+
+        xmm_src0 = _mm_loadu_si128((__m128i *)(src0 + cnt));
+        xmm_src1 = _mm_loadu_si128((__m128i *)(src1 + cnt));
+        ret = _mm_cmpestri(xmm_src0, 16, xmm_src1, 16, mode);
+        if (_mm_cmpestrc(xmm_src0, 16, xmm_src1, 16, mode)) {
+            cnt += ret;
+	    break;
+        }
+        cnt += 16;
+
+        xmm_src0 = _mm_loadu_si128((__m128i *)(src0 + cnt));
+        xmm_src1 = _mm_loadu_si128((__m128i *)(src1 + cnt));
+        ret = _mm_cmpestri(xmm_src0, 16, xmm_src1, 16, mode);
+        if (_mm_cmpestrc(xmm_src0, 16, xmm_src1, 16, mode)) {
+            cnt += ret;
+	    break;
+        }
+        cnt += 16;
+    } while (cnt < 256);
+
+    if (*(unsigned short *)(src0 + cnt) == *(unsigned short *)(src1 + cnt)) {
+        cnt += 2;
+    } else if (*(src0 + cnt) == *(src1 + cnt)) {
+        cnt++;
+    }
+    return cnt;
+}
+#endif
 
 local z_const unsigned quick_len_codes[MAX_MATCH-MIN_MATCH+1];
 local z_const unsigned quick_dist_codes[8192];
@@ -145,12 +189,16 @@ local inline Pos quick_insert_string(deflate_state *z_const s, z_const Pos str)
     Pos ret;
     unsigned h = 0;
 
+#ifndef _MSC_VER
     __asm__ __volatile__ (
         "crc32l (%[window], %[str], 1), %0\n\t"
     : "+r" (h)
     : [window] "r" (s->window),
       [str] "r" ((long)str)
     );
+#else
+    h = _mm_crc32_u32(h, *(unsigned *)(s->window + str));
+#endif
 
     ret = s->head[h & s->hash_mask];
     s->head[h & s->hash_mask] = str;
@@ -2332,3 +2380,4 @@ local z_const unsigned quick_dist_codes[8192] = {
 	0x00ff1310, 0x00ff3310, 0x00ff5310, 0x00ff7310, 
 	0x00ff9310, 0x00ffb310, 0x00ffd310, 0x00fff310, 
 };
+#endif /* USE_QUICK */

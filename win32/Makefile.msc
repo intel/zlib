@@ -33,7 +33,7 @@ LDFLAGS = -nologo -debug -incremental:no -opt:ref
 ARFLAGS = -nologo
 RCFLAGS = /dWIN32 /r
 
-OBJS = adler32.obj compress.obj crc32.obj deflate.obj gzclose.obj gzlib.obj gzread.obj \
+OBJS = x86.obj adler32.obj deflate_quick.obj fill_window_sse.obj compress.obj crc32.obj crc_folding.obj deflate.obj gzclose.obj gzlib.obj gzread.obj \
        gzwrite.obj infback.obj inflate.obj inftrees.obj inffast.obj trees.obj uncompr.obj zutil.obj
 OBJA =
 
@@ -94,7 +94,7 @@ compress.obj: $(TOP)/compress.c $(TOP)/zlib.h $(TOP)/zconf.h
 
 crc32.obj: $(TOP)/crc32.c $(TOP)/zlib.h $(TOP)/zconf.h $(TOP)/crc32.h
 
-deflate.obj: $(TOP)/deflate.c $(TOP)/deflate.h $(TOP)/zutil.h $(TOP)/zlib.h $(TOP)/zconf.h
+deflate.obj: $(TOP)/deflate.c $(TOP)/deflate.h $(TOP)/zutil.h $(TOP)/zlib.h $(TOP)/zconf.h 
 
 gzclose.obj: $(TOP)/gzclose.c $(TOP)/zlib.h $(TOP)/zconf.h $(TOP)/gzguts.h
 

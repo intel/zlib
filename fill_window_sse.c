@@ -8,10 +8,11 @@
  *
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
+#include "deflate.h"
+
 #ifdef HAVE_SSE2
 
 #include <immintrin.h>
-#include "deflate.h"
 
 extern int read_buf        OF((z_streamp strm, Bytef *buf, unsigned size));
 
