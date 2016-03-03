@@ -275,13 +275,17 @@ ZLIB_INTERNAL void crc_fold_copy(deflate_state *z_const s,
 {
     unsigned long algn_diff;
     __m128i xmm_t0, xmm_t1, xmm_t2, xmm_t3;
+    char buf[sizeof(__m128i)] __attribute__((aligned(sizeof(__m128i)))) = { 0 };
 
     CRC_LOAD(s)
 
+    _Static_assert(sizeof(buf) >= 15, "Size mismatch");
     if (len < 16) {
         if (len == 0)
             return;
-        xmm_crc_part = _mm_loadu_si128((__m128i *)src);
+        memcpy(buf, src, len);
+        xmm_crc_part = _mm_load_si128((const __m128i *)buf);
+        memcpy(dst, buf, len);
         goto partial;
     }
 
@@ -387,8 +391,9 @@ ZLIB_INTERNAL void crc_fold_copy(deflate_state *z_const s,
         xmm_crc_part = _mm_load_si128((__m128i *)src);
     }
 
-partial:
     _mm_storeu_si128((__m128i *)dst, xmm_crc_part);
+
+partial:
     partial_fold(s, len, &xmm_crc0, &xmm_crc1, &xmm_crc2, &xmm_crc3,
         &xmm_crc_part);
 done:
