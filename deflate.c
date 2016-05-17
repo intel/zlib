@@ -3,6 +3,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
+
 /*
  *  ALGORITHM
  *
@@ -383,6 +384,7 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
     s->level = level;
     s->strategy = strategy;
     s->method = (Byte)method;
+    s->block_open = 0;
 
     return deflateReset(strm);
 }
