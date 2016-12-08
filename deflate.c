@@ -78,19 +78,20 @@ local block_state deflate_slow(deflate_state *s, int flush);
 #ifdef USE_QUICK
 block_state deflate_quick(deflate_state *s, int flush);
 #endif
+#ifdef USE_MEDIUM
+block_state deflate_medium(deflate_state *s, int flush);
+#endif
 local block_state deflate_rle(deflate_state *s, int flush);
 local block_state deflate_huff(deflate_state *s, int flush);
 local void lm_init(deflate_state *s);
 local void putShortMSB(deflate_state *s, uInt b);
 local unsigned read_buf(z_streamp strm, Bytef *buf, unsigned size);
-local uInt longest_match(deflate_state *s, IPos cur_match);
+uInt longest_match(deflate_state *s, IPos cur_match);
 
 #ifdef ZLIB_DEBUG
 local void check_match(deflate_state *s, IPos start, IPos match,
                             int length);
 #endif
-local block_state deflate_rle(deflate_state *s, int flush);
-local block_state deflate_huff(deflate_state *s, int flush);
 
 /* ===========================================================================
  * Local data
@@ -135,9 +136,17 @@ local const config configuration_table[10] = {
 /* 2 */ {4,    5, 16,    8, deflate_fast},
 /* 3 */ {4,    6, 32,   32, deflate_fast},
 #endif
+
+#ifdef USE_MEDIUM
+/* 4 */ {4,    4, 16,   16, deflate_medium},  /* lazy matches */
+/* 5 */ {8,   16, 32,   32, deflate_medium},
+/* 6 */ {8,   16, 128, 128, deflate_medium},
+#else
 /* 4 */ {4,    4, 16,   16, deflate_slow},  /* lazy matches */
 /* 5 */ {8,   16, 32,   32, deflate_slow},
 /* 6 */ {8,   16, 128, 128, deflate_slow},
+#endif
+
 /* 7 */ {8,   32, 128, 256, deflate_slow},
 /* 8 */ {32, 128, 258, 1024, deflate_slow},
 /* 9 */ {32, 258, 258, 4096, deflate_slow}}; /* max compression */
@@ -1394,7 +1403,11 @@ int ZEXPORT deflateCopy(z_streamp dest, z_streamp source) {
  *   string (strstart) and its distance is <= MAX_DIST, and prev_length >= 1
  * OUT assertion: the match length is not greater than s->lookahead.
  */
-local uInt longest_match(deflate_state *s, IPos cur_match) {
+#ifndef ASMV
+/* For 80x86 and 680x0, an optimized version will be provided in match.asm or
+ * match.S. The code will be functionally equivalent.
+ */
+uInt longest_match(deflate_state *s, IPos cur_match) {
     unsigned chain_length = s->max_chain_length;/* max hash chain length */
     register Bytef *scan = s->window + s->strstart; /* current string */
     register Bytef *match;                      /* matched string */
@@ -1468,6 +1481,7 @@ local uInt longest_match(deflate_state *s, IPos cur_match) {
          * to check more often for insufficient lookahead.
          */
         Assert(scan[2] == match[2], "scan[2]?");
+	if (scan[2] != match[2]) continue;
         scan++, match++;
         do {
         } while (*(ushf*)(scan += 2) == *(ushf*)(match += 2) &&
@@ -1536,13 +1550,14 @@ local uInt longest_match(deflate_state *s, IPos cur_match) {
     if ((uInt)best_len <= s->lookahead) return (uInt)best_len;
     return s->lookahead;
 }
+#endif /* !ASMV */
 
 #else /* FASTEST */
 
 /* ---------------------------------------------------------------------------
  * Optimized version for FASTEST only
  */
-local uInt longest_match(deflate_state *s, IPos cur_match) {
+uInt longest_match(deflate_state *s, IPos cur_match) {
     register Bytef *scan = s->window + s->strstart; /* current string */
     register Bytef *match;                       /* matched string */
     register int len;                           /* length of current match */
@@ -1603,7 +1618,7 @@ local uInt longest_match(deflate_state *s, IPos cur_match) {
 /* ===========================================================================
  * Check that the match at match_start is indeed a match.
  */
-local void check_match(deflate_state *s, IPos start, IPos match, int length) {
+ZLIB_INTERNAL void check_match(deflate_state *s, IPos start, IPos match, int length) {
     /* check that the match is indeed a match */
     if (zmemcmp(s->window + match,
                 s->window + start, length) != EQUAL) {
@@ -1619,30 +1634,7 @@ local void check_match(deflate_state *s, IPos start, IPos match, int length) {
         do { putc(s->window[start++], stderr); } while (--length != 0);
     }
 }
-#else
-#  define check_match(s, start, match, length)
 #endif /* ZLIB_DEBUG */
-
-/* ===========================================================================
- * Flush the current block, with given end-of-file flag.
- * IN assertion: strstart is set to the end of the current match.
- */
-#define FLUSH_BLOCK_ONLY(s, last) { \
-   _tr_flush_block(s, (s->block_start >= 0L ? \
-                   (charf *)&s->window[(unsigned)s->block_start] : \
-                   (charf *)Z_NULL), \
-                (ulg)((long)s->strstart - s->block_start), \
-                (last)); \
-   s->block_start = s->strstart; \
-   flush_pending(s->strm); \
-   Tracev((stderr,"[FLUSH]")); \
-}
-
-/* Same but force premature exit if necessary. */
-#define FLUSH_BLOCK(s, last) { \
-   FLUSH_BLOCK_ONLY(s, last); \
-   if (s->strm->avail_out == 0) return (last) ? finish_started : need_more; \
-}
 
 /* Maximum stored block length in deflate format (not including header). */
 #define MAX_STORED 65535
