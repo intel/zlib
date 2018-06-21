@@ -70,6 +70,13 @@ typedef enum {
 typedef block_state (*compress_func)(deflate_state *s, int flush);
 /* Compression function. Returns the block state after the call. */
 
+local int deflateStateCheck(z_streamp strm);
+local void slide_hash(deflate_state *s);
+local void slide_hash_c(deflate_state *s);
+#ifdef USE_SSE_SLIDE
+extern void slide_hash_sse(deflate_state *s);
+#endif
+local void fill_window    (deflate_state *s);
 local block_state deflate_stored(deflate_state *s, int flush);
 local block_state deflate_fast(deflate_state *s, int flush);
 #ifndef FASTEST
@@ -184,7 +191,7 @@ local const config configuration_table[10] = {
      __attribute__((no_sanitize("memory")))
 #  endif
 #endif
-local void slide_hash(deflate_state *s) {
+local void slide_hash_c(deflate_state *s) {
     unsigned n, m;
     Posf *p;
     uInt wsize = s->w_size;
@@ -206,6 +213,17 @@ local void slide_hash(deflate_state *s) {
          */
     } while (--n);
 #endif
+}
+
+local void slide_hash(deflate_state *s)
+{
+#ifdef USE_SSE_SLIDE
+    if (x86_cpu_has_sse2)
+        slide_hash_sse(s);
+    else
+#endif
+        slide_hash_c(s);
+
 }
 
 /* ===========================================================================
