@@ -47,9 +47,6 @@
 #define MAX_BL_BITS 7
 /* Bit length codes must not exceed MAX_BL_BITS bits */
 
-#define END_BLOCK 256
-/* end of block literal code */
-
 #define REP_3_6      16
 /* repeat previous bit length 3-6 times (2 bits of repeat count) */
 
@@ -83,7 +80,7 @@ local const uch bl_order[BL_CODES]
 #if defined(GEN_TREES_H) || !defined(STDC)
 /* non ANSI compilers may not accept trees.h */
 
-local ct_data static_ltree[L_CODES+2];
+ZLIB_INTERNAL ct_data static_ltree[L_CODES+2];
 /* The static literal tree. Since the bit lengths are imposed, there is no
  * need for the L_CODES extra codes used during heap construction. However
  * The codes 286 and 287 are needed to build a canonical tree (see _tr_init
@@ -178,7 +175,7 @@ local void bi_flush(deflate_state *s) {
 /* ===========================================================================
  * Flush the bit buffer and align the output on a byte boundary
  */
-local void bi_windup(deflate_state *s) {
+ZLIB_INTERNAL void bi_windup(deflate_state *s) {
     if (s->bi_valid > 8) {
         put_short(s, s->bi_buf);
     } else if (s->bi_valid > 0) {
@@ -392,7 +389,7 @@ void gen_trees_header(void) {
     fprintf(header,
             "/* header created automatically with -DGEN_TREES_H */\n\n");
 
-    fprintf(header, "local const ct_data static_ltree[L_CODES+2] = {\n");
+    fprintf(header, "ZLIB_INTERNAL const ct_data static_ltree[L_CODES+2] = {\n");
     for (i = 0; i < L_CODES+2; i++) {
         fprintf(header, "{{%3u},{%3u}}%s", static_ltree[i].Code,
                 static_ltree[i].Len, SEPARATOR(i, L_CODES+1, 5));

@@ -60,13 +60,6 @@ const char deflate_copyright[] =
   copyright string in the executable of your product.
  */
 
-typedef enum {
-    need_more,      /* block not completed, need more input or more output */
-    block_done,     /* block flush performed */
-    finish_started, /* finish started, need only more output at next deflate */
-    finish_done     /* finish done, accept no more input or output */
-} block_state;
-
 typedef block_state (*compress_func)(deflate_state *s, int flush);
 /* Compression function. Returns the block state after the call. */
 
@@ -76,11 +69,25 @@ local void slide_hash_c(deflate_state *s);
 #ifdef USE_SSE_SLIDE
 extern void slide_hash_sse(deflate_state *s);
 #endif
-local void fill_window    (deflate_state *s);
+ZLIB_INTERNAL void fill_window(deflate_state *s);
 local block_state deflate_stored(deflate_state *s, int flush);
 local block_state deflate_fast(deflate_state *s, int flush);
 #ifndef FASTEST
 local block_state deflate_slow(deflate_state *s, int flush);
+#endif
+#ifdef USE_QUICK
+block_state deflate_quick(deflate_state *s, int flush);
+#endif
+local block_state deflate_rle(deflate_state *s, int flush);
+local block_state deflate_huff(deflate_state *s, int flush);
+local void lm_init(deflate_state *s);
+local void putShortMSB(deflate_state *s, uInt b);
+local unsigned read_buf(z_streamp strm, Bytef *buf, unsigned size);
+local uInt longest_match(deflate_state *s, IPos cur_match);
+
+#ifdef ZLIB_DEBUG
+local void check_match(deflate_state *s, IPos start, IPos match,
+                            int length);
 #endif
 local block_state deflate_rle(deflate_state *s, int flush);
 local block_state deflate_huff(deflate_state *s, int flush);
@@ -119,10 +126,15 @@ local const config configuration_table[2] = {
 local const config configuration_table[10] = {
 /*      good lazy nice chain */
 /* 0 */ {0,    0,  0,    0, deflate_stored},  /* store only */
+#ifdef USE_QUICK
+/* 1 */ {4,    4,  8,    4, deflate_quick},
+/* 1 */ {4,    4,  8,    4, deflate_fast},
+/* 3 */ {4,    6, 32,   32, deflate_fast},
+#else
 /* 1 */ {4,    4,  8,    4, deflate_fast}, /* max speed, no lazy matches */
 /* 2 */ {4,    5, 16,    8, deflate_fast},
 /* 3 */ {4,    6, 32,   32, deflate_fast},
-
+#endif
 /* 4 */ {4,    4, 16,   16, deflate_slow},  /* lazy matches */
 /* 5 */ {8,   16, 32,   32, deflate_slow},
 /* 6 */ {8,   16, 128, 128, deflate_slow},
@@ -266,7 +278,7 @@ local unsigned read_buf(z_streamp strm, Bytef *buf, unsigned size) {
  *    performed for at least two bytes (required for the zip translate_eol
  *    option -- not supported here).
  */
-local void fill_window(deflate_state *s) {
+ZLIB_INTERNAL void fill_window(deflate_state *s) {
     unsigned n;
     unsigned more;    /* Amount of free space at the end of the window. */
     uInt wsize = s->w_size;
@@ -457,6 +469,12 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
         return Z_STREAM_ERROR;
     }
     if (windowBits == 8) windowBits = 9;  /* until 256-byte window bug fixed */
+
+#ifdef USE_QUICK
+    if (level == 1)
+        windowBits = 13;
+#endif
+
     s = (deflate_state *) ZALLOC(strm, 1, sizeof(deflate_state));
     if (s == Z_NULL) return Z_MEM_ERROR;
     strm->state = (struct internal_state FAR *)s;
@@ -938,7 +956,7 @@ local void putShortMSB(deflate_state *s, uInt b) {
  * applications may wish to modify it to avoid allocating a large
  * strm->next_out buffer and copying into it. (See also read_buf()).
  */
-local void flush_pending(z_streamp strm) {
+ZLIB_INTERNAL void flush_pending(z_streamp strm) {
     unsigned len;
     deflate_state *s = strm->state;
 
@@ -1205,10 +1223,16 @@ int ZEXPORT deflate(z_streamp strm, int flush) {
         (flush != Z_NO_FLUSH && s->status != FINISH_STATE)) {
         block_state bstate;
 
-        bstate = s->level == 0 ? deflate_stored(s, flush) :
-                 s->strategy == Z_HUFFMAN_ONLY ? deflate_huff(s, flush) :
-                 s->strategy == Z_RLE ? deflate_rle(s, flush) :
-                 (*(configuration_table[s->level].func))(s, flush);
+        if (s->level == 0)
+            bstate = deflate_stored(s, flush);
+	else if (s->strategy == Z_HUFFMAN_ONLY)
+            bstate = deflate_huff(s, flush);
+        else if (s->strategy == Z_RLE)
+            bstate = deflate_rle(s, flush);
+        else if (s->level == 1 && !x86_cpu_has_sse42)
+            bstate = deflate_fast(s, flush);
+        else
+	    bstate = (*configuration_table[s->level].func)(s, flush);
 
         if (bstate == finish_started || bstate == finish_done) {
             s->status = FINISH_STATE;
