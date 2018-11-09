@@ -506,7 +506,7 @@ unsigned copy;
 /* Restore state from registers in inflate() */
 #define RESTORE() \
     do { \
-        state->wnext = put - (state->window + state->wsize);\
+        state->wnext = (unsigned)(put - (state->window + state->wsize));\
         strm->avail_out = left; \
         strm->next_in = next; \
         strm->avail_in = have; \
@@ -951,7 +951,7 @@ int flush;
             copy = state->length;
             if (copy) {
                 unsigned char *end = state->window + (state->wsize * 4);
-                unsigned long diff = end - put;
+                unsigned diff = (unsigned)(end - put);
 
                 if (copy > have) copy = have;
                 if (copy > diff) {
@@ -959,7 +959,7 @@ int flush;
                         RESTORE();
                         window_output_flush(strm);
                         LOAD();
-                        diff = end - put;
+                        diff = (unsigned)(end - put);
                     }
                     if (copy > diff) copy = diff;
                 }
@@ -1210,7 +1210,7 @@ int flush;
                 /* fallthrough */
             case MATCH: {
                 unsigned char *end = state->window + (state->wsize * 4);
-                unsigned long buf_left = end - put;
+                unsigned buf_left = (unsigned)(end - put);
                 copy = state->length;
 
 		RESTORE();
@@ -1219,7 +1219,7 @@ int flush;
                         /* relies on RESTORE() above with no changes to those vars */
                         window_output_flush(strm);
                         LOAD();
-                        buf_left = end - put;
+                        buf_left = (unsigned)(end - put);
                     }
                     if (copy > buf_left) copy = buf_left;
                 }
