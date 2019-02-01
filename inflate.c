@@ -218,6 +218,9 @@ int ZEXPORT inflateInit2_(z_streamp strm, int windowBits,
         return ret;
     }
 
+    if (state->wbits == 0)
+	    state->wbits = 15;
+
     if (state->wbits > 0) {
         state->wsize = 1UL << state->wbits;
         state->window = (unsigned char FAR *)ZALLOC(strm, state->wsize + 16, 4);
