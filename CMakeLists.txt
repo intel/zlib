@@ -107,6 +107,11 @@ set(ZLIB_PRIVATE_HDRS
     zutil.h
 )
 set(ZLIB_SRCS
+    crc_folding.c
+    slide_sse.c
+    deflate_medium.c
+    deflate_quick.c
+    match.c
     adler32.c
     compress.c
     crc32.c
@@ -124,6 +129,8 @@ set(ZLIB_SRCS
     x86.c
     zutil.c
 )
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mpclmul")
 
 if(NOT MINGW)
     set(ZLIB_DLL_SRCS
