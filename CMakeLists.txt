@@ -130,7 +130,11 @@ set(ZLIB_SRCS
     zutil.c
 )
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mpclmul")
+include (CheckCCompilerFlag)
+check_c_compiler_flag(-mpclmul HAS_PCLMUL)
+if(HAS_PCLMUL)
+	set_source_files_properties(crc_folding.c PROPERTIES COMPILE_FLAGS -mpclmul)
+endif()
 
 if(NOT MINGW)
     set(ZLIB_DLL_SRCS
