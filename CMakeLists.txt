@@ -133,7 +133,7 @@ set(ZLIB_SRCS
 include (CheckCCompilerFlag)
 check_c_compiler_flag(-mpclmul HAS_PCLMUL)
 if(HAS_PCLMUL)
-	set_source_files_properties(crc_folding.c PROPERTIES COMPILE_FLAGS -mpclmul)
+	set_source_files_properties(crc_folding.c PROPERTIES COMPILE_FLAGS "-mpclmul -msse4")
 endif()
 
 if(NOT MINGW)
