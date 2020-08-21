@@ -57,11 +57,11 @@ SRCDIR=
 ZINC=
 ZINCOUT=-I.
 
-OBJZ = adler32.o crc32.o crc_folding.o deflate_quick.o deflate_medium.o deflate.o infback.o inffast.o inflate.o inftrees.o match.o slide_sse.o trees.o x86.o  zutil.o
+OBJZ = adler32.o crc32.o crc_folding.o deflate_quick.o deflate_medium.o deflate.o infback.o inffast.o inflate.o inftrees.o match.o slide_sse.o slide_avx2.o trees.o x86.o  zutil.o
 OBJG = compress.o uncompr.o gzclose.o gzlib.o gzread.o gzwrite.o
 OBJC = $(OBJZ) $(OBJG)
 
-PIC_OBJZ = adler32.lo crc32.lo crc_folding.lo deflate_quick.lo deflate_medium.lo deflate.lo infback.lo inffast.lo inflate.lo inftrees.lo match.lo slide_sse.lo trees.lo x86.lo zutil.lo
+PIC_OBJZ = adler32.lo crc32.lo crc_folding.lo deflate_quick.lo deflate_medium.lo deflate.lo infback.lo inffast.lo inflate.lo inftrees.lo match.lo slide_sse.lo slide_avx2.lo trees.lo x86.lo zutil.lo
 PIC_OBJG = compress.lo uncompr.lo gzclose.lo gzlib.lo gzread.lo gzwrite.lo
 PIC_OBJC = $(PIC_OBJZ) $(PIC_OBJG)
 
@@ -195,6 +195,9 @@ x86.o: $(SRCDIR)x86.c
 slide_sse.o: $(SRCDIR)slide_sse.c
 	$(CC) $(CFLAGS) $(ZINC) -msse2 -c -o $@ $(SRCDIR)slide_sse.c
 
+slide_avx2.o: $(SRCDIR)slide_avx2.c
+	$(CC) $(CFLAGS) $(ZINC) -mavx2 -c -o $@ $(SRCDIR)slide_avx2.c
+
 crc_folding.o: $(SRCDIR)crc_folding.c
 	$(CC) $(CFLAGS) $(ZINC) -mpclmul -msse4 -c -o $@ $(SRCDIR)crc_folding.c
 
@@ -291,6 +294,11 @@ slide_sse.lo: $(SRCDIR)slide_sse.c
 	-@mkdir objs 2>/dev/null || test -d objs
 	$(CC) $(SFLAGS) $(ZINC) -msse2 -DPIC -c -o objs/slide_sse.o $(SRCDIR)slide_sse.c
 	-@mv objs/slide_sse.o $@
+
+slide_avx2.lo: $(SRCDIR)slide_avx2.c
+	-@mkdir objs 2>/dev/null || test -d objs
+	$(CC) $(SFLAGS) $(ZINC) -mavx2 -DPIC -c -o objs/slide_avx2.o $(SRCDIR)slide_avx2.c
+	-@mv objs/slide_avx2.o $@
 
 crc_folding.lo: $(SRCDIR)crc_folding.c
 	-@mkdir objs 2>/dev/null || test -d objs

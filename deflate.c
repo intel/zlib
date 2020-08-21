@@ -72,6 +72,9 @@ local void slide_hash_c     OF((deflate_state *s));
 #ifdef USE_SSE_SLIDE
 extern void slide_hash_sse(deflate_state *s);
 #endif
+#ifdef USE_AVX2_SLIDE
+extern void slide_hash_avx2(deflate_state *s);
+#endif
 local block_state deflate_stored OF((deflate_state *s, int flush));
 local block_state deflate_fast   OF((deflate_state *s, int flush));
 #ifndef FASTEST
@@ -199,6 +202,11 @@ local void slide_hash_c(s)
 
 local void slide_hash(deflate_state *s)
 {
+#ifdef USE_AVX2_SLIDE
+    if (x86_cpu_has_avx2)
+        slide_hash_avx2(s);
+    else
+#endif
 #ifdef USE_SSE_SLIDE
     if (x86_cpu_has_sse2)
         slide_hash_sse(s);

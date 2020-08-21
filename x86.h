@@ -20,6 +20,7 @@
 #define ADLER32_UNROLL_LESS
 #define CRC32_UNROLL_LESS
 #define USE_SSE_SLIDE
+#define USE_AVX2_SLIDE
 #define USE_CRC_HASH
 #define USE_PCLMUL_CRC
 #define USE_MEDIUM
