@@ -77,7 +77,7 @@ all: static shared
 
 static: example$(EXE) minigzip$(EXE)
 
-shared: examplesh$(EXE) minigzipsh$(EXE)
+shared: examplesh$(EXE) minigzipsh$(EXE) perf_testsh$(EXE)
 
 all64: example64$(EXE) minigzip64$(EXE)
 
@@ -100,7 +100,7 @@ testshared: shared
 	DYLD_LIBRARY_PATH=`pwd`:$(DYLD_LIBRARY_PATH) ; export DYLD_LIBRARY_PATH; \
 	SHLIB_PATH=`pwd`:$(SHLIB_PATH) ; export SHLIB_PATH; \
 	TMPSH=tmpsh_$$; \
-	if echo hello world | ./minigzipsh | ./minigzipsh -d && ./examplesh $$TMPSH; then \
+	if echo hello world | ./minigzipsh | ./minigzipsh -d && ./examplesh $$TMPSH && ./perf_testsh; then \
 	  echo '		*** zlib shared test OK ***'; \
 	else \
 	  echo '		*** zlib shared test FAILED ***'; false; \
@@ -143,6 +143,8 @@ example64.o: $(SRCDIR)test/example.c $(SRCDIR)zlib.h zconf.h
 minigzip64.o: $(SRCDIR)test/minigzip.c $(SRCDIR)zlib.h zconf.h
 	$(CC) $(CFLAGS) $(ZINCOUT) -D_FILE_OFFSET_BITS=64 -c -o $@ $(SRCDIR)test/minigzip.c
 
+perf_test.o: $(SRCDIR)test/perf_test.c $(SRCDIR)zlib.h zconf.h deflate.h
+	$(CC) $(CFLAGS) $(ZINCOUT) -c -o $@ $(SRCDIR)test/perf_test.c
 
 adler32.o: $(SRCDIR)adler32.c
 	$(CC) $(CFLAGS) $(ZINC) -c -o $@ $(SRCDIR)adler32.c
@@ -345,6 +347,9 @@ example64$(EXE): example64.o $(STATICLIB)
 minigzip64$(EXE): minigzip64.o $(STATICLIB)
 	$(CC) $(CFLAGS) -o $@ minigzip64.o $(TEST_LDFLAGS)
 
+perf_testsh$(EXE): perf_test.o $(SHAREDLIBV)
+	$(CC) $(CFLAGS) -o $@ perf_test.o -L. $(SHAREDLIBV)
+
 install-libs: $(LIBS)
 	-@if [ ! -d $(DESTDIR)$(exec_prefix)  ]; then mkdir -p $(DESTDIR)$(exec_prefix); fi
 	-@if [ ! -d $(DESTDIR)$(libdir)       ]; then mkdir -p $(DESTDIR)$(libdir); fi
@@ -409,7 +414,7 @@ mostlyclean: clean
 clean:
 	rm -f *.o *.lo *~ \
 	   example$(EXE) minigzip$(EXE) examplesh$(EXE) minigzipsh$(EXE) \
-	   example64$(EXE) minigzip64$(EXE) \
+	   example64$(EXE) minigzip64$(EXE) perf_testsh$(EXE)\
 	   infcover \
 	   libz.* foo.gz so_locations \
 	   _match.s maketree contrib/infback9/*.o
