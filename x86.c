@@ -17,6 +17,7 @@ int x86_cpu_has_sse42;
 int x86_cpu_has_avx;
 int x86_cpu_has_avx2;
 int x86_cpu_has_pclmul;
+int x86_cpu_has_vpclmulqdq;
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -42,6 +43,10 @@ int x86_cpu_has_pclmul;
 
 #ifndef bit_PCLMUL
 # define bit_PCLMUL 0x2
+#endif
+
+#ifndef bit_VPCLMULQDQ
+# define bit_VPCLMULQDQ 0x400
 #endif
 
 void x86_check_features(void)
@@ -73,6 +78,7 @@ void x86_check_features(void)
         __cpuid_count(7, 0, regs[A], regs[B], regs[C], regs[D]);
 #endif
         x86_cpu_has_avx2 = regs[B] & bit_AVX2;
+        x86_cpu_has_vpclmulqdq = regs[C] & bit_VPCLMULQDQ;
     }
 }
 #endif

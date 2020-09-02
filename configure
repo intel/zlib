@@ -824,6 +824,24 @@ EOF
   else
     echo "Checking for attribute(visibility) support... No." | tee -a configure.log
   fi
+  # check if compiler suppoprt VPCLMULQDQ
+  echo >> configure.log
+  cat > $test.c <<EOF
+#include <immintrin.h>
+int main()
+{
+  __m512i a, b;
+  _mm512_clmulepi64_epi128(a, b, 0x00);
+  return 0;
+}
+EOF
+  if tryboth $CC -c $CFLAGS -mavx512f -mvpclmulqdq -Wno-uninitialized $test.c; then
+    CFLAGS="$CFLAGS -DUSE_VPCLMULQDQ_CRC"
+    SFLAGS="$SFLAGS -DUSE_VPCLMULQDQ_CRC"
+    echo "Checking for VPLMULDQD support... Yes." | tee -a configure.log
+  else
+    echo "Checking for VPLMULDQD support... No." | tee -a configure.log
+  fi
 fi
 
 # show the results in the log
