@@ -351,7 +351,7 @@ minigzip64$(EXE): minigzip64.o $(STATICLIB)
 	$(CC) $(CFLAGS) -o $@ minigzip64.o $(TEST_LDFLAGS)
 
 perf_testsh$(EXE): perf_test.o $(SHAREDLIBV)
-	$(CC) $(CFLAGS) -o $@ perf_test.o -L. $(SHAREDLIBV)
+	$(CC) $(CFLAGS) -o $@ perf_test.o crc_folding.o -L. $(SHAREDLIBV)
 
 install-libs: $(LIBS)
 	-@if [ ! -d $(DESTDIR)$(exec_prefix)  ]; then mkdir -p $(DESTDIR)$(exec_prefix); fi

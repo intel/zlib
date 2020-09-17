@@ -73,10 +73,87 @@ void test_slide_hash() {
     free_deflate_state(avx2);
 }
 
+extern void crc_fold_init(unsigned crc[4 * 5]);
+extern void crc_fold_copy(unsigned crc[4 * 5], unsigned char *dst, const unsigned char *src, long len);
+extern unsigned crc_fold_512to32(unsigned crc[4 * 5]);
+
+void test_crc_fold_copy() {
+    unsigned crc0[4 * 5];
+    unsigned crc0_v[4 * 5];
+    unsigned char *src, *dst, *src_v, *dst_v;
+    size_t i;
+    const size_t size = 1024 * 16 + 255;
+    clock_t begin, end;
+    printf("crc_fold_copy testing:\n");
+
+    src = (unsigned char *) ALLOC(size, sizeof(char));
+    src_v = (unsigned char *) ALLOC(size, sizeof(char));
+    dst = (unsigned char *) ALLOC(size, sizeof(char));
+    dst_v = (unsigned char *) ALLOC(size, sizeof(char));
+
+    for (i = 0; i < 4 * 5; i++) {
+        crc0[i] = 0;
+        crc0_v[i] = 0;
+    }
+
+    for (i = 0; i < size; i++) { // fill src buf
+        src[i] = i & 0xFF;
+        src_v[i] = i & 0xFF;
+    }
+
+    /* sanity check */
+    x86_cpu_has_vpclmulqdq = 0;  // PCLMUL mode
+    crc_fold_init(crc0);
+    crc_fold_copy(crc0, dst, src, size);
+    x86_cpu_has_vpclmulqdq = 1;  // VPCLMULQDQ mode
+    crc_fold_init(crc0_v);
+    crc_fold_copy(crc0_v, dst_v, src_v, size);
+    // check crc values
+    assert(crc_fold_512to32(crc0) == crc_fold_512to32(crc0_v));
+    // check copy
+        for (i = 0; i < size; i++) {
+        assert(dst[i] == dst_v[i]);
+    }
+
+    // mutiple call test
+    size_t half = size/2;
+    x86_cpu_has_vpclmulqdq = 0;  // PCLMUL mode
+    crc_fold_init(crc0);
+    crc_fold_copy(crc0, dst, src, size);
+    crc_fold_copy(crc0, dst + half, src + half, size - half);
+    x86_cpu_has_vpclmulqdq = 1;  // VPCLMULQDQ mode
+    crc_fold_init(crc0_v);
+    crc_fold_copy(crc0_v, dst_v, src_v, size);
+    crc_fold_copy(crc0_v, dst_v + half, src_v + half, size - half);
+    // check crc values
+    assert(crc_fold_512to32(crc0) == crc_fold_512to32(crc0_v));
+
+    // check the performance
+    #define TEST_LOOP 10000
+    x86_cpu_has_vpclmulqdq = 0;
+    begin = clock();
+    for (i = 0; i < TEST_LOOP; i++) crc_fold_copy(crc0, dst, src, size);
+    end = clock();
+    printf("PCLMUL time: %.2fms\n", (end - begin)/1000.0);
+
+    x86_cpu_has_vpclmulqdq = 1;
+    begin = clock();
+    for (i = 0; i < TEST_LOOP; i++) crc_fold_copy(crc0_v, dst_v, src_v, size);
+    end = clock();
+    printf("VPCLMULQDQ time: %.2fms\n", (end - begin)/1000.0);
+
+    FREE(src);
+    FREE(dst);
+    FREE(src_v);
+    FREE(dst_v);
+}
+
 void main() {
     x86_check_features();
     if (x86_cpu_has_sse2 && x86_cpu_has_avx2)
         test_slide_hash();
+    if (x86_cpu_has_vpclmulqdq)
+        test_crc_fold_copy();
 }
 #else
 void main() {}
