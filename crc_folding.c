@@ -303,6 +303,9 @@ ZLIB_INTERNAL void crc_fold_copy(unsigned crc[4 * 5],
         __m512i zmm_t0, zmm_t1, zmm_t2, zmm_t3;
         __m512i zmm_crc0, zmm_crc1, zmm_crc2, zmm_crc3;
         __m512i z0, z1, z2, z3;
+        z_const __m512i zmm_fold4 = _mm512_set4_epi32(
+                0x00000001, 0x54442bd4,
+                0x00000001, 0xc6e41596);
         z_const __m512i zmm_fold16 = _mm512_set4_epi32(
                 0x00000001, 0x1542778a,
                 0x00000001, 0x322d1430);
@@ -324,16 +327,15 @@ ZLIB_INTERNAL void crc_fold_copy(unsigned crc[4 * 5],
             zmm_crc0 = _mm512_xor_si512(z0, zmm_crc0);
         } else {
             /* already have intermediate CRC in xmm registers
-             * need to convert as CRC-32, then apply in zmm registers
+             * fold4 with 4 xmm_crc to get zmm_crc0
             */
-            _mm_storeu_si128((__m128i *)crc + 0, xmm_crc0);
-            _mm_storeu_si128((__m128i *)crc + 1, xmm_crc1);
-            _mm_storeu_si128((__m128i *)crc + 2, xmm_crc2);
-            _mm_storeu_si128((__m128i *)crc + 3, xmm_crc3);
-            _mm_storeu_si128((__m128i *)crc + 4, xmm_crc_part);
-            crc_tmp = crc_fold_512to32(crc);
-            xmm_crc0 = _mm_cvtsi32_si128(~crc_tmp);  // bitwise to get original CRC
             zmm_crc0 = _mm512_inserti32x4(zmm_crc0, xmm_crc0, 0);
+            zmm_crc0 = _mm512_inserti32x4(zmm_crc0, xmm_crc1, 1);
+            zmm_crc0 = _mm512_inserti32x4(zmm_crc0, xmm_crc2, 2);
+            zmm_crc0 = _mm512_inserti32x4(zmm_crc0, xmm_crc3, 3);
+            z0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold4, 0x01);
+            zmm_crc0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold4, 0x10);
+            zmm_crc0 = _mm512_xor_si512(z0, zmm_crc0);
         }
         zmm_crc0 = _mm512_xor_si512(zmm_crc0, zmm_t0);
         _mm512_storeu_si512((__m512i *)dst, zmm_t0);
@@ -380,9 +382,6 @@ ZLIB_INTERNAL void crc_fold_copy(unsigned crc[4 * 5],
             dst += 256;
         }
         // zmm_crc[0,1,2,3] -> zmm_crc0
-        __m512i zmm_fold4 = _mm512_set4_epi32(
-                0x00000001, 0x54442bd4,
-                0x00000001, 0xc6e41596);
         z0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold4, 0x01);
         zmm_crc0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold4, 0x10);
         zmm_crc0 = _mm512_xor_si512(z0, zmm_crc0);
