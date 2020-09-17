@@ -119,11 +119,11 @@ void test_crc_fold_copy() {
     size_t half = size/2;
     x86_cpu_has_vpclmulqdq = 0;  // PCLMUL mode
     crc_fold_init(crc0);
-    crc_fold_copy(crc0, dst, src, size);
+    crc_fold_copy(crc0, dst, src, half);
     crc_fold_copy(crc0, dst + half, src + half, size - half);
     x86_cpu_has_vpclmulqdq = 1;  // VPCLMULQDQ mode
     crc_fold_init(crc0_v);
-    crc_fold_copy(crc0_v, dst_v, src_v, size);
+    crc_fold_copy(crc0_v, dst_v, src_v, half);
     crc_fold_copy(crc0_v, dst_v + half, src_v + half, size - half);
     // check crc values
     assert(crc_fold_512to32(crc0) == crc_fold_512to32(crc0_v));

@@ -838,9 +838,9 @@ EOF
   if tryboth $CC -c $CFLAGS -mavx512f -mvpclmulqdq -Wno-uninitialized $test.c; then
     CFLAGS="$CFLAGS -DUSE_VPCLMULQDQ_CRC"
     SFLAGS="$SFLAGS -DUSE_VPCLMULQDQ_CRC"
-    echo "Checking for VPLMULDQD support... Yes." | tee -a configure.log
+    echo "Checking for VPCLMULDQD support... Yes." | tee -a configure.log
   else
-    echo "Checking for VPLMULDQD support... No." | tee -a configure.log
+    echo "Checking for VPCLMULDQD support... No." | tee -a configure.log
   fi
 fi
 
