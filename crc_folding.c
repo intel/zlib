@@ -297,6 +297,115 @@ ZLIB_INTERNAL void crc_fold_copy(unsigned crc[4 * 5],
             &xmm_crc_part);
     }
 
+#ifdef USE_VPCLMULQDQ_CRC
+    if (x86_cpu_has_vpclmulqdq && (len >= 256)) {
+        unsigned crc_tmp;
+        __m512i zmm_t0, zmm_t1, zmm_t2, zmm_t3;
+        __m512i zmm_crc0, zmm_crc1, zmm_crc2, zmm_crc3;
+        __m512i z0, z1, z2, z3;
+        z_const __m512i zmm_fold16 = _mm512_set4_epi32(
+                0x00000001, 0x1542778a,
+                0x00000001, 0x322d1430);
+
+        // zmm register init
+        zmm_crc0 = _mm512_setzero_si512();
+        zmm_t0 = _mm512_loadu_si512((__m512i *)src);
+        zmm_crc1 = _mm512_loadu_si512((__m512i *)src + 1);
+        zmm_crc2 = _mm512_loadu_si512((__m512i *)src + 2);
+        zmm_crc3 = _mm512_loadu_si512((__m512i *)src + 3);
+
+        /* check if is first call */
+        if (_mm_extract_epi64(xmm_crc0, 0) == 0x9db42487 && _mm_extract_epi64(xmm_crc0, 1) == 0x0) {
+            xmm_crc0 = _mm_cvtsi32_si128(0x437e23e9);  // magic number for 2048 zero bit padding
+            // fold with magic number
+            zmm_crc0 = _mm512_inserti32x4(zmm_crc0, xmm_crc0, 0);
+            z0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold16, 0x01);
+            zmm_crc0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold16, 0x10);
+            zmm_crc0 = _mm512_xor_si512(z0, zmm_crc0);
+        } else {
+            /* already have intermediate CRC in xmm registers
+             * need to convert as CRC-32, then apply in zmm registers
+            */
+            _mm_storeu_si128((__m128i *)crc + 0, xmm_crc0);
+            _mm_storeu_si128((__m128i *)crc + 1, xmm_crc1);
+            _mm_storeu_si128((__m128i *)crc + 2, xmm_crc2);
+            _mm_storeu_si128((__m128i *)crc + 3, xmm_crc3);
+            _mm_storeu_si128((__m128i *)crc + 4, xmm_crc_part);
+            crc_tmp = crc_fold_512to32(crc);
+            xmm_crc0 = _mm_cvtsi32_si128(~crc_tmp);  // bitwise to get original CRC
+            zmm_crc0 = _mm512_inserti32x4(zmm_crc0, xmm_crc0, 0);
+        }
+        zmm_crc0 = _mm512_xor_si512(zmm_crc0, zmm_t0);
+        _mm512_storeu_si512((__m512i *)dst, zmm_t0);
+        _mm512_storeu_si512((__m512i *)dst + 1, zmm_crc1);
+        _mm512_storeu_si512((__m512i *)dst + 2, zmm_crc2);
+        _mm512_storeu_si512((__m512i *)dst + 3, zmm_crc3);
+        len -= 256;
+        src += 256;
+        dst += 256;
+
+        // fold-16 loops
+        while (len >= 256) {
+            zmm_t0 = _mm512_loadu_si512((__m512i *)src);
+            zmm_t1 = _mm512_loadu_si512((__m512i *)src + 1);
+            zmm_t2 = _mm512_loadu_si512((__m512i *)src + 2);
+            zmm_t3 = _mm512_loadu_si512((__m512i *)src + 3);
+
+            z0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold16, 0x01);
+            z1 = _mm512_clmulepi64_epi128(zmm_crc1, zmm_fold16, 0x01);
+            z2 = _mm512_clmulepi64_epi128(zmm_crc2, zmm_fold16, 0x01);
+            z3 = _mm512_clmulepi64_epi128(zmm_crc3, zmm_fold16, 0x01);
+
+            zmm_crc0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold16, 0x10);
+            zmm_crc1 = _mm512_clmulepi64_epi128(zmm_crc1, zmm_fold16, 0x10);
+            zmm_crc2 = _mm512_clmulepi64_epi128(zmm_crc2, zmm_fold16, 0x10);
+            zmm_crc3 = _mm512_clmulepi64_epi128(zmm_crc3, zmm_fold16, 0x10);
+
+            zmm_crc0 = _mm512_xor_si512(z0, zmm_crc0);
+            zmm_crc1 = _mm512_xor_si512(z1, zmm_crc1);
+            zmm_crc2 = _mm512_xor_si512(z2, zmm_crc2);
+            zmm_crc3 = _mm512_xor_si512(z3, zmm_crc3);
+
+            zmm_crc0 = _mm512_xor_si512(zmm_crc0, zmm_t0);
+            zmm_crc1 = _mm512_xor_si512(zmm_crc1, zmm_t1);
+            zmm_crc2 = _mm512_xor_si512(zmm_crc2, zmm_t2);
+            zmm_crc3 = _mm512_xor_si512(zmm_crc3, zmm_t3);
+
+            _mm512_storeu_si512((__m512i *)dst, zmm_t0);
+            _mm512_storeu_si512((__m512i *)dst + 1, zmm_t1);
+            _mm512_storeu_si512((__m512i *)dst + 2, zmm_t2);
+            _mm512_storeu_si512((__m512i *)dst + 3, zmm_t3);
+            len -= 256;
+            src += 256;
+            dst += 256;
+        }
+        // zmm_crc[0,1,2,3] -> zmm_crc0
+        __m512i zmm_fold4 = _mm512_set4_epi32(
+                0x00000001, 0x54442bd4,
+                0x00000001, 0xc6e41596);
+        z0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold4, 0x01);
+        zmm_crc0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold4, 0x10);
+        zmm_crc0 = _mm512_xor_si512(z0, zmm_crc0);
+        zmm_crc0 = _mm512_xor_si512(zmm_crc0, zmm_crc1);
+
+        z0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold4, 0x01);
+        zmm_crc0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold4, 0x10);
+        zmm_crc0 = _mm512_xor_si512(z0, zmm_crc0);
+        zmm_crc0 = _mm512_xor_si512(zmm_crc0, zmm_crc2);
+
+        z0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold4, 0x01);
+        zmm_crc0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold4, 0x10);
+        zmm_crc0 = _mm512_xor_si512(z0, zmm_crc0);
+        zmm_crc0 = _mm512_xor_si512(zmm_crc0, zmm_crc3);
+
+        // zmm_crc0 -> xmm_crc[0, 1, 2, 3]
+        xmm_crc0 = _mm512_extracti32x4_epi32(zmm_crc0, 0);
+        xmm_crc1 = _mm512_extracti32x4_epi32(zmm_crc0, 1);
+        xmm_crc2 = _mm512_extracti32x4_epi32(zmm_crc0, 2);
+        xmm_crc3 = _mm512_extracti32x4_epi32(zmm_crc0, 3);
+    }
+#endif
+
     while ((len -= 64) >= 0) {
         xmm_t0 = _mm_load_si128((__m128i *)src);
         xmm_t1 = _mm_load_si128((__m128i *)src + 1);

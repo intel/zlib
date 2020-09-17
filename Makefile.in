@@ -73,6 +73,9 @@ OBJS = $(OBJC) $(OBJA)
 
 PIC_OBJS = $(PIC_OBJC) $(PIC_OBJA)
 
+# extra flags for crc-folding.c
+CRC_FOLDING_FLAGS = $(if $(findstring USE_VPCLMULQDQ_CRC,$(CFLAGS)), -mavx512f -mvpclmulqdq, )
+
 all: static shared
 
 static: example$(EXE) minigzip$(EXE)
@@ -201,7 +204,7 @@ slide_avx2.o: $(SRCDIR)slide_avx2.c
 	$(CC) $(CFLAGS) $(ZINC) -mavx2 -c -o $@ $(SRCDIR)slide_avx2.c
 
 crc_folding.o: $(SRCDIR)crc_folding.c
-	$(CC) $(CFLAGS) $(ZINC) -mpclmul -msse4 -c -o $@ $(SRCDIR)crc_folding.c
+	$(CC) $(CFLAGS) $(ZINC) -mpclmul -msse4 $(CRC_FOLDING_FLAGS) -c -o $@ $(SRCDIR)crc_folding.c
 
 deflate_quick.o: $(SRCDIR)deflate_quick.c
 	$(CC) $(CFLAGS) $(ZINC) -msse4 -c -o $@ $(SRCDIR)deflate_quick.c
@@ -304,7 +307,7 @@ slide_avx2.lo: $(SRCDIR)slide_avx2.c
 
 crc_folding.lo: $(SRCDIR)crc_folding.c
 	-@mkdir objs 2>/dev/null || test -d objs
-	$(CC) $(SFLAGS) $(ZINC) -mpclmul -msse4 -DPIC -c -o objs/crc_folding.o $(SRCDIR)crc_folding.c
+	$(CC) $(SFLAGS) $(ZINC) -mpclmul -msse4 -DPIC $(CRC_FOLDING_FLAGS) -c -o objs/crc_folding.o $(SRCDIR)crc_folding.c
 	-@mv objs/crc_folding.o $@
 
 deflate_quick.lo: $(SRCDIR)deflate_quick.c
