@@ -317,27 +317,18 @@ ZLIB_INTERNAL void crc_fold_copy(unsigned crc[4 * 5],
         zmm_crc2 = _mm512_loadu_si512((__m512i *)src + 2);
         zmm_crc3 = _mm512_loadu_si512((__m512i *)src + 3);
 
-        /* check if is first call */
-        if (_mm_extract_epi64(xmm_crc0, 0) == 0x9db42487 && _mm_extract_epi64(xmm_crc0, 1) == 0x0) {
-            xmm_crc0 = _mm_cvtsi32_si128(0x437e23e9);  // magic number for 2048 zero bit padding
-            // fold with magic number
-            zmm_crc0 = _mm512_inserti32x4(zmm_crc0, xmm_crc0, 0);
-            z0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold16, 0x01);
-            zmm_crc0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold16, 0x10);
-            zmm_crc0 = _mm512_xor_si512(z0, zmm_crc0);
-        } else {
-            /* already have intermediate CRC in xmm registers
-             * fold4 with 4 xmm_crc to get zmm_crc0
-            */
-            zmm_crc0 = _mm512_inserti32x4(zmm_crc0, xmm_crc0, 0);
-            zmm_crc0 = _mm512_inserti32x4(zmm_crc0, xmm_crc1, 1);
-            zmm_crc0 = _mm512_inserti32x4(zmm_crc0, xmm_crc2, 2);
-            zmm_crc0 = _mm512_inserti32x4(zmm_crc0, xmm_crc3, 3);
-            z0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold4, 0x01);
-            zmm_crc0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold4, 0x10);
-            zmm_crc0 = _mm512_xor_si512(z0, zmm_crc0);
-        }
+        /* already have intermediate CRC in xmm registers
+            * fold4 with 4 xmm_crc to get zmm_crc0
+        */
+        zmm_crc0 = _mm512_inserti32x4(zmm_crc0, xmm_crc0, 0);
+        zmm_crc0 = _mm512_inserti32x4(zmm_crc0, xmm_crc1, 1);
+        zmm_crc0 = _mm512_inserti32x4(zmm_crc0, xmm_crc2, 2);
+        zmm_crc0 = _mm512_inserti32x4(zmm_crc0, xmm_crc3, 3);
+        z0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold4, 0x01);
+        zmm_crc0 = _mm512_clmulepi64_epi128(zmm_crc0, zmm_fold4, 0x10);
+        zmm_crc0 = _mm512_xor_si512(z0, zmm_crc0);
         zmm_crc0 = _mm512_xor_si512(zmm_crc0, zmm_t0);
+
         _mm512_storeu_si512((__m512i *)dst, zmm_t0);
         _mm512_storeu_si512((__m512i *)dst + 1, zmm_crc1);
         _mm512_storeu_si512((__m512i *)dst + 2, zmm_crc2);
