@@ -111,7 +111,7 @@ void test_crc_fold_copy() {
     // check crc values
     assert(crc_fold_512to32(crc0) == crc_fold_512to32(crc0_v));
     // check copy
-        for (i = 0; i < size; i++) {
+    for (i = 0; i < size; i++) {
         assert(dst[i] == dst_v[i]);
     }
 

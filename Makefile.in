@@ -74,7 +74,7 @@ OBJS = $(OBJC) $(OBJA)
 PIC_OBJS = $(PIC_OBJC) $(PIC_OBJA)
 
 # extra flags for crc-folding.c
-CRC_FOLDING_FLAGS = $(if $(findstring USE_VPCLMULQDQ_CRC,$(CFLAGS)), -mavx512f -mvpclmulqdq, )
+VPCLMULQDQ_CRC_FLAGS = $(if $(findstring USE_VPCLMULQDQ_CRC,$(CFLAGS)), -mavx512f -mvpclmulqdq, )
 
 all: static shared
 
@@ -207,7 +207,7 @@ crc_folding.o: $(SRCDIR)crc_folding.c
 	$(CC) $(CFLAGS) $(ZINC) -mpclmul -msse4 -c -o $@ $(SRCDIR)crc_folding.c
 
 crc_folding_vpclmulqdq.o: $(SRCDIR)crc_folding_vpclmulqdq.c
-	$(CC) $(CFLAGS) $(ZINC) $(CRC_FOLDING_FLAGS) -c -o $@ $(SRCDIR)crc_folding_vpclmulqdq.c
+	$(CC) $(CFLAGS) $(ZINC) $(VPCLMULQDQ_CRC_FLAGS) -c -o $@ $(SRCDIR)crc_folding_vpclmulqdq.c
 
 deflate_quick.o: $(SRCDIR)deflate_quick.c
 	$(CC) $(CFLAGS) $(ZINC) -msse4 -c -o $@ $(SRCDIR)deflate_quick.c
@@ -315,7 +315,7 @@ crc_folding.lo: $(SRCDIR)crc_folding.c
 
 crc_folding_vpclmulqdq.lo: $(SRCDIR)crc_folding_vpclmulqdq.c
 	-@mkdir objs 2>/dev/null || test -d objs
-	$(CC) $(SFLAGS) $(ZINC) -DPIC $(CRC_FOLDING_FLAGS) -c -o objs/crc_folding_vpclmulqdq.o $(SRCDIR)crc_folding_vpclmulqdq.c
+	$(CC) $(SFLAGS) $(ZINC) -DPIC $(VPCLMULQDQ_CRC_FLAGS) -c -o objs/crc_folding_vpclmulqdq.o $(SRCDIR)crc_folding_vpclmulqdq.c
 	-@mv objs/crc_folding_vpclmulqdq.o $@
 
 deflate_quick.lo: $(SRCDIR)deflate_quick.c

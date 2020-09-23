@@ -7,7 +7,7 @@ unsigned fold_16_vpclmulqdq(__m128i *xmm_crc0, __m128i *xmm_crc1,
         __m128i *xmm_crc2, __m128i *xmm_crc3,
         long len, unsigned char *src, unsigned char *dst) {
         unsigned crc_tmp;
-	unsigned len_tmp = len;
+        unsigned len_tmp = len;
         __m512i zmm_t0, zmm_t1, zmm_t2, zmm_t3;
         __m512i zmm_crc0, zmm_crc1, zmm_crc2, zmm_crc3;
         __m512i z0, z1, z2, z3;
