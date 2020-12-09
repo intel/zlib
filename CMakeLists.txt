@@ -123,6 +123,10 @@ set(ZLIB_SRCS
     uncompr.c
     x86.c
     zutil.c
+    match.c
+    crc_folding.c
+    slide_sse.c
+    deflate_medium.c
 )
 
 if(NOT MINGW)
