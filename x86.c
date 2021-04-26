@@ -14,6 +14,8 @@
 
 int x86_cpu_has_sse2;
 int x86_cpu_has_sse42;
+int x86_cpu_has_avx;
+int x86_cpu_has_avx2;
 int x86_cpu_has_pclmul;
 
 #ifdef _MSC_VER
@@ -28,6 +30,14 @@ int x86_cpu_has_pclmul;
 
 #ifndef bit_SSE4_2
 # define bit_SSE4_2 0x100000
+#endif
+
+#ifndef bit_AVX
+# define bit_AVX 0x10000000
+#endif
+
+#ifndef bit_AVX2
+# define bit_AVX2 0x20
 #endif
 
 #ifndef bit_PCLMUL
@@ -53,7 +63,16 @@ void x86_check_features(void)
 
     x86_cpu_has_sse2 = regs[D] & bit_SSE2;
     x86_cpu_has_sse42= regs[C] & bit_SSE4_2;
+    x86_cpu_has_avx = regs[C] & bit_AVX;
     x86_cpu_has_pclmul=regs[C] & bit_PCLMUL;
-}
 
+    if (x86_cpu_has_avx) {
+#ifdef _MSC_VER
+        __cpuidex(regs, 7, 0);
+#else
+        __cpuid_count(7, 0, regs[A], regs[B], regs[C], regs[D]);
+#endif
+        x86_cpu_has_avx2 = regs[B] & bit_AVX2;
+    }
+}
 #endif
