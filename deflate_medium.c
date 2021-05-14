@@ -164,6 +164,10 @@ static void fizzle_matches(deflate_state *s, struct match *current, struct match
         match--;
         orig--;
         changed ++;
+
+        /* Make sure to avoid an out-of-bounds read on the next iteration */
+        if (match < s->window || orig < s->window)
+                break;
     }
 
     if (!changed)
