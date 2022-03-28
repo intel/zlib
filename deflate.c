@@ -237,6 +237,9 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
     int wrap = 1;
     static const char my_version[] = ZLIB_VERSION;
 
+    if (memLevel < DEF_MEM_LEVEL)
+        memLevel = DEF_MEM_LEVEL;
+
     ushf *overlay;
     /* We overlay pending_buf and d_buf+l_buf. This works since the average
      * output size for (length,distance) codes is <= 24 bits.
