@@ -20,13 +20,16 @@
 #define ADLER32_UNROLL_LESS
 #define CRC32_UNROLL_LESS
 #define USE_SSE_SLIDE
+#define USE_AVX2_SLIDE
 #define USE_CRC_HASH
 #define USE_PCLMUL_CRC
 #define USE_MEDIUM
 
 extern int x86_cpu_has_sse2;
 extern int x86_cpu_has_sse42;
+extern int x86_cpu_has_avx2;
 extern int x86_cpu_has_pclmul;
+extern int x86_cpu_has_vpclmulqdq;
 
 void x86_check_features(void);
 

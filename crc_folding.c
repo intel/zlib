@@ -25,6 +25,12 @@
 #include <immintrin.h>
 #include <wmmintrin.h>
 
+#ifdef USE_VPCLMULQDQ_CRC
+extern unsigned fold_16_vpclmulqdq(__m128i *xmm_crc0, __m128i *xmm_crc1,
+        __m128i *xmm_crc2, __m128i *xmm_crc3,
+        long len, unsigned char *src, unsigned char *dst);
+#endif
+
 #define CRC_LOAD(crc) \
     do { \
         __m128i xmm_crc0 = _mm_loadu_si128((__m128i *)crc + 0);\
@@ -296,6 +302,16 @@ ZLIB_INTERNAL void crc_fold_copy(unsigned crc[4 * 5],
         partial_fold(algn_diff, &xmm_crc0, &xmm_crc1, &xmm_crc2, &xmm_crc3,
             &xmm_crc_part);
     }
+
+#ifdef USE_VPCLMULQDQ_CRC
+    if (x86_cpu_has_vpclmulqdq && (len >= 256)) {
+        unsigned n = fold_16_vpclmulqdq(&xmm_crc0, &xmm_crc1,
+                           &xmm_crc2, &xmm_crc3, len, src, dst);
+        len -= n;
+        src += n;
+        dst += n;
+    }
+#endif
 
     while ((len -= 64) >= 0) {
         xmm_t0 = _mm_load_si128((__m128i *)src);

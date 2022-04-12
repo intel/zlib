@@ -57,11 +57,11 @@ SRCDIR=
 ZINC=
 ZINCOUT=-I.
 
-OBJZ = adler32.o crc32.o crc_folding.o deflate_quick.o deflate_medium.o deflate.o infback.o inffast.o inflate.o inftrees.o match.o slide_sse.o trees.o x86.o  zutil.o
+OBJZ = adler32.o crc32.o crc_folding.o crc_folding_vpclmulqdq.o deflate_quick.o deflate_medium.o deflate.o infback.o inffast.o inflate.o inftrees.o match.o slide_sse.o slide_avx2.o trees.o x86.o  zutil.o
 OBJG = compress.o uncompr.o gzclose.o gzlib.o gzread.o gzwrite.o
 OBJC = $(OBJZ) $(OBJG)
 
-PIC_OBJZ = adler32.lo crc32.lo crc_folding.lo deflate_quick.lo deflate_medium.lo deflate.lo infback.lo inffast.lo inflate.lo inftrees.lo match.lo slide_sse.lo trees.lo x86.lo zutil.lo
+PIC_OBJZ = adler32.lo crc32.lo crc_folding.lo crc_folding_vpclmulqdq.lo deflate_quick.lo deflate_medium.lo deflate.lo infback.lo inffast.lo inflate.lo inftrees.lo match.lo slide_sse.lo slide_avx2.lo trees.lo x86.lo zutil.lo
 PIC_OBJG = compress.lo uncompr.lo gzclose.lo gzlib.lo gzread.lo gzwrite.lo
 PIC_OBJC = $(PIC_OBJZ) $(PIC_OBJG)
 
@@ -73,11 +73,14 @@ OBJS = $(OBJC) $(OBJA)
 
 PIC_OBJS = $(PIC_OBJC) $(PIC_OBJA)
 
+# extra flags for crc-folding.c
+VPCLMULQDQ_CRC_FLAGS = $(if $(findstring USE_VPCLMULQDQ_CRC,$(CFLAGS)), -mavx512f -mvpclmulqdq, )
+
 all: static shared
 
 static: example$(EXE) minigzip$(EXE)
 
-shared: examplesh$(EXE) minigzipsh$(EXE)
+shared: examplesh$(EXE) minigzipsh$(EXE) perf_testsh$(EXE)
 
 all64: example64$(EXE) minigzip64$(EXE)
 
@@ -100,7 +103,7 @@ testshared: shared
 	DYLD_LIBRARY_PATH=`pwd`:$(DYLD_LIBRARY_PATH) ; export DYLD_LIBRARY_PATH; \
 	SHLIB_PATH=`pwd`:$(SHLIB_PATH) ; export SHLIB_PATH; \
 	TMPSH=tmpsh_$$; \
-	if echo hello world | ./minigzipsh | ./minigzipsh -d && ./examplesh $$TMPSH; then \
+	if echo hello world | ./minigzipsh | ./minigzipsh -d && ./examplesh $$TMPSH && ./perf_testsh; then \
 	  echo '		*** zlib shared test OK ***'; \
 	else \
 	  echo '		*** zlib shared test FAILED ***'; false; \
@@ -143,6 +146,8 @@ example64.o: $(SRCDIR)test/example.c $(SRCDIR)zlib.h zconf.h
 minigzip64.o: $(SRCDIR)test/minigzip.c $(SRCDIR)zlib.h zconf.h
 	$(CC) $(CFLAGS) $(ZINCOUT) -D_FILE_OFFSET_BITS=64 -c -o $@ $(SRCDIR)test/minigzip.c
 
+perf_test.o: $(SRCDIR)test/perf_test.c $(SRCDIR)zlib.h zconf.h deflate.h
+	$(CC) $(CFLAGS) $(ZINCOUT) -c -o $@ $(SRCDIR)test/perf_test.c
 
 adler32.o: $(SRCDIR)adler32.c
 	$(CC) $(CFLAGS) $(ZINC) -c -o $@ $(SRCDIR)adler32.c
@@ -195,8 +200,14 @@ x86.o: $(SRCDIR)x86.c
 slide_sse.o: $(SRCDIR)slide_sse.c
 	$(CC) $(CFLAGS) $(ZINC) -msse2 -c -o $@ $(SRCDIR)slide_sse.c
 
+slide_avx2.o: $(SRCDIR)slide_avx2.c
+	$(CC) $(CFLAGS) $(ZINC) -mavx2 -c -o $@ $(SRCDIR)slide_avx2.c
+
 crc_folding.o: $(SRCDIR)crc_folding.c
 	$(CC) $(CFLAGS) $(ZINC) -mpclmul -msse4 -c -o $@ $(SRCDIR)crc_folding.c
+
+crc_folding_vpclmulqdq.o: $(SRCDIR)crc_folding_vpclmulqdq.c
+	$(CC) $(CFLAGS) $(ZINC) $(VPCLMULQDQ_CRC_FLAGS) -c -o $@ $(SRCDIR)crc_folding_vpclmulqdq.c
 
 deflate_quick.o: $(SRCDIR)deflate_quick.c
 	$(CC) $(CFLAGS) $(ZINC) -msse4 -c -o $@ $(SRCDIR)deflate_quick.c
@@ -292,10 +303,20 @@ slide_sse.lo: $(SRCDIR)slide_sse.c
 	$(CC) $(SFLAGS) $(ZINC) -msse2 -DPIC -c -o objs/slide_sse.o $(SRCDIR)slide_sse.c
 	-@mv objs/slide_sse.o $@
 
+slide_avx2.lo: $(SRCDIR)slide_avx2.c
+	-@mkdir objs 2>/dev/null || test -d objs
+	$(CC) $(SFLAGS) $(ZINC) -mavx2 -DPIC -c -o objs/slide_avx2.o $(SRCDIR)slide_avx2.c
+	-@mv objs/slide_avx2.o $@
+
 crc_folding.lo: $(SRCDIR)crc_folding.c
 	-@mkdir objs 2>/dev/null || test -d objs
 	$(CC) $(SFLAGS) $(ZINC) -mpclmul -msse4 -DPIC -c -o objs/crc_folding.o $(SRCDIR)crc_folding.c
 	-@mv objs/crc_folding.o $@
+
+crc_folding_vpclmulqdq.lo: $(SRCDIR)crc_folding_vpclmulqdq.c
+	-@mkdir objs 2>/dev/null || test -d objs
+	$(CC) $(SFLAGS) $(ZINC) -DPIC $(VPCLMULQDQ_CRC_FLAGS) -c -o objs/crc_folding_vpclmulqdq.o $(SRCDIR)crc_folding_vpclmulqdq.c
+	-@mv objs/crc_folding_vpclmulqdq.o $@
 
 deflate_quick.lo: $(SRCDIR)deflate_quick.c
 	-@mkdir objs 2>/dev/null || test -d objs
@@ -336,6 +357,9 @@ example64$(EXE): example64.o $(STATICLIB)
 
 minigzip64$(EXE): minigzip64.o $(STATICLIB)
 	$(CC) $(CFLAGS) -o $@ minigzip64.o $(TEST_LDFLAGS)
+
+perf_testsh$(EXE): perf_test.o $(SHAREDLIBV)
+	$(CC) $(CFLAGS) -o $@ perf_test.o crc_folding.o -L. $(SHAREDLIBV)
 
 install-libs: $(LIBS)
 	-@if [ ! -d $(DESTDIR)$(exec_prefix)  ]; then mkdir -p $(DESTDIR)$(exec_prefix); fi
@@ -401,7 +425,7 @@ mostlyclean: clean
 clean:
 	rm -f *.o *.lo *~ \
 	   example$(EXE) minigzip$(EXE) examplesh$(EXE) minigzipsh$(EXE) \
-	   example64$(EXE) minigzip64$(EXE) \
+	   example64$(EXE) minigzip64$(EXE) perf_testsh$(EXE)\
 	   infcover \
 	   libz.* foo.gz so_locations \
 	   _match.s maketree contrib/infback9/*.o
