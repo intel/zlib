@@ -107,20 +107,31 @@ set(ZLIB_SRCS
     adler32.c
     compress.c
     crc32.c
+    crc_folding.c
     deflate.c
+    deflate_medium.c
+    deflate_quick.c
     gzclose.c
     gzlib.c
     gzread.c
     gzwrite.c
-    inflate.c
     infback.c
-    inftrees.c
     inffast.c
+    inflate.c
+    inftrees.c
+    match.c
+    slide_sse.c
     trees.c
     uncompr.c
     x86.c
     zutil.c
 )
+
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
+    set_source_files_properties(crc_folding.c PROPERTIES COMPILE_OPTIONS "-mpclmul;-msse4")
+    set_source_files_properties(slide_sse.c PROPERTIES COMPILE_OPTIONS -msse2)
+    set_source_files_properties(deflate_quick.c PROPERTIES COMPILE_OPTIONS -msse4)
+endif()
 
 if(NOT MINGW)
     set(ZLIB_DLL_SRCS
