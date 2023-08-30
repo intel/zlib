@@ -136,7 +136,7 @@ local inline void quick_send_bits(deflate_state *z_const s, z_const int value,
 
     b = w >> 3;
     s->pending += b;
-    s->bi_buf =  out >> (b << 3);
+    s->bi_buf = (ush)(out >> (b << 3));
     s->bi_valid = w - (b << 3);
 }
 
@@ -224,7 +224,7 @@ block_state deflate_quick(deflate_state *s, int flush)
         }
 
         if (s->lookahead >= MIN_MATCH) {
-            hash_head = quick_insert_string(s, s->strstart);
+            hash_head = quick_insert_string(s, (Pos)s->strstart);
             dist = s->strstart - hash_head;
 
             if ((dist-1) < (s->w_size - 1)) {
