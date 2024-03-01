@@ -919,4 +919,6 @@ s/\@VERSION\@/$VER/g;
 " > zlib.pc
 
 # done
-leave 0
+echo "*** WARNING *** " | tee -a configure.log
+echo This project is archived and no longer actively maintained.   | tee -a configure.log
+leave 1

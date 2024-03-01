@@ -70,6 +70,9 @@ minigzip_d.exe: minigzip.obj $(IMPLIB)
 	$(LD) $(LDFLAGS) -out:$@ minigzip.obj $(IMPLIB)
 	if exist $@.manifest \
 	  mt -nologo -manifest $@.manifest -outputresource:$@;1
+	echo " *** WARNING ***"
+	echo "This project is archived and no longer actively maintained."
+	exit 1
 
 {$(TOP)}.c.obj:
 	$(CC) -c $(WFLAGS) $(CFLAGS) $<
